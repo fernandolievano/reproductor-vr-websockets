@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>360 Video with WebSocket and Cardboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aframe-look-at-component/dist/aframe-look-at-component.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      margin: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="buttons" class="flex flex-col gap-4 items-center justify-center z-10 absolute top-8 right-8">
+    <input type="range" id="seekBar" min="0" max="100" step="1" onchange="seekVideo(this.value)" class="w-full">
+    <div class="flex  items-center justify-center gap-4">
+      <button class="bg-blue-500 hover:bg-blue-400 rounded  px-4 py-2 text-white text-center transition-all" onclick="playVideo()">
+         Reproducir
+      </button>
+      <button class="bg-gray-500 hover:bg-gray-400 rounded px-4 py-2 text-white text-center transition-all" onclick="pauseVideo()">
+         Pausar
+      </button>
+    </div>
+  </div>
+
+  <a-scene>
+    <a-videosphere src="#video360" rotation="0 -130 0"></a-videosphere>
+    <a-entity camera look-controls wasd-controls position="0 1.6 0">
+      <a-entity position="0 0 -2" geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+        material="color: #FFC107" cursor="fuse: true; fuseTimeout: 500"></a-entity>
+    </a-entity>
+    <!-- CAMBIAR URL DEL VIDEO -->
+    <video id="video360" src="https://pchen66.github.io/Panolens/examples/asset/textures/video/ClashofClans.mp4"
+      crossorigin="anonymous" loop="true" webkit-playsinline playsinline></video>
+    <!-- CAMBIAR URL DEL VIDEO -->
+  </a-scene>
+
+  <script>
+    const video = document.getElementById('video360');
+
+    // Establecer conexión WebSocket
+    // ! reemplazar por url del servidor
+    const socket = new WebSocket('ws://localhost:8080');
+
+    socket.addEventListener('open', function (event) {
+      console.log('WebSocket is connected');
+      alert('connected to ws!');
+    });
+
+    socket.addEventListener('message', function (event) {
+      console.log('Message from server => ', event.data);
+      const message = JSON.parse(event.data);
+
+      // Manejar mensajes de reproducción, pausa y búsqueda
+      if (message.action === 'play') {
+        video.play();
+      } else if (message.action === 'pause') {
+        video.currentTime = 0;
+        video.pause();
+      } else if (message.action === 'seek') {
+        video.currentTime = message.time;
+      }
+    });
+
+    // Enviar mensajes al servidor WebSocket
+    function sendMessage(action, time = 0) {
+      const message = JSON.stringify({ action: action, time: time });
+      socket.send(message);
+    }
+
+    // Controlar reproducción del video
+    function playVideo() {
+      video.play();
+      sendMessage('play');
+    }
+
+    function pauseVideo() {
+      video.currentTime = 0;
+      video.pause();
+      sendMessage('pause');
+    }
+
+    function seekVideo(value) {
+      const time = video.duration * (value / 100);
+      video.currentTime = time;
+      sendMessage('seek', time);
+    }
+
+    // Actualizar el rango de la barra de búsqueda
+    video.addEventListener('timeupdate', () => {
+      const value = (100 / video.duration) * video.currentTime;
+      document.getElementById('seekBar').value = value;
+    });
+  </script>
+</body>
+
+</html>
